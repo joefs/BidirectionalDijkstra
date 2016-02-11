@@ -16,9 +16,134 @@ namespace CSE591PA1
     class PA1Solver
     {
         const bool DEBUG_ON = false; 
-        //[System.Runtime.InteropServices.DllImport(@"QuickGraph.dll")]
+
         static void  Main()
         {
+            Test2();
+        }
+
+        static void Test2()
+        {
+
+            AdjacencyGraph<string, Edge<string>> graph = new AdjacencyGraph<string, Edge<string>>(true);
+            // Transpose graph
+            AdjacencyGraph<string, Edge<string>> tGraph = new AdjacencyGraph<string, Edge<string>>(true);
+            Dictionary<Edge<string>, double> edgeCost = new Dictionary<Edge<string>, double>();
+
+            int n = Convert.ToInt32(Console.ReadLine());
+            for (int i = 0; i < n; i++)
+            {
+                AddNodeToBoth(graph, tGraph, ""+i);
+            }
+            int m = Convert.ToInt32(Console.ReadLine());
+            char[] splitChars = {':'};
+            string[] theParts;
+            for (int i = 0; i < m; i++)
+            {
+                theParts = Console.ReadLine().Split(splitChars);
+                AddEdgeToBoth(graph, tGraph, edgeCost, theParts[0], theParts[1], Convert.ToInt32(theParts[2]));
+            }
+            int k = Convert.ToInt32(Console.ReadLine());
+            Stack<string[]> optionalEdgeStack = new Stack<string[]>();
+            for (int i = 0; i < k; i++)
+            {
+                optionalEdgeStack.Push(Console.ReadLine().Split(splitChars));
+            }
+            string source = Console.ReadLine();
+            string target = Console.ReadLine();
+
+            System.Func<Edge<String>, double> EdgeCostFunct = (QuickGraph.Edge<string> input) => { return (edgeCost.ContainsKey(input)) ? edgeCost[input] : 0.0; };
+
+
+            //FORWARD SEARCH
+
+
+            // We want to use Dijkstra on this graph
+            DijkstraShortestPathAlgorithm<string, Edge<string>> dijkstra = new DijkstraShortestPathAlgorithm<string, Edge<string>>(graph, EdgeCostFunct);
+
+            // attach a distance observer to give us the shortest path distances
+
+            VertexDistanceRecorderObserver<string, Edge<string>> distObserver = new VertexDistanceRecorderObserver<string, Edge<string>>(EdgeCostFunct);
+            distObserver.Attach(dijkstra);
+
+            // Attach a Vertex Predecessor Recorder Observer to give us the paths
+            VertexPredecessorRecorderObserver<string, Edge<string>> predecessorObserver = new VertexPredecessorRecorderObserver<string, Edge<string>>();
+            predecessorObserver.Attach(dijkstra);
+
+
+            //BACKWARD SEARCH
+
+
+            // We want to use Dijkstra on this graph
+            DijkstraShortestPathAlgorithm<string, Edge<string>> dijkstra2 = new DijkstraShortestPathAlgorithm<string, Edge<string>>(tGraph, EdgeCostFunct);
+
+            // attach a distance observer to give us the shortest path distances
+
+            VertexDistanceRecorderObserver<string, Edge<string>> distObserver2 = new VertexDistanceRecorderObserver<string, Edge<string>>(EdgeCostFunct);
+            distObserver2.Attach(dijkstra2);
+
+            // Attach a Vertex Predecessor Recorder Observer to give us the paths
+            VertexPredecessorRecorderObserver<string, Edge<string>> predecessorObserver2 = new VertexPredecessorRecorderObserver<string, Edge<string>>();
+            predecessorObserver2.Attach(dijkstra2);
+
+
+
+
+
+            // Run the algorithm with starname set to be the source
+            dijkstra.Compute(source);
+
+
+            if (distObserver.Distances.ContainsKey(target) == false)
+            {
+                Console.WriteLine(target + " is unreachable");
+            }
+            else
+            {
+                dijkstra2.Compute(target);
+
+                double initialPathLength = distObserver.Distances[target];
+                Stack<string> viablePathAdditions = new Stack<string>();
+                string currentMinEdgeAddition = "";
+                double currentMinEdgeWeight = -1.0;
+                while (optionalEdgeStack.Count > 0)
+                {
+                    string[] triple = optionalEdgeStack.Pop();
+                    if (distObserver.Distances.ContainsKey(triple[0]) && distObserver2.Distances.ContainsKey(triple[1]))
+                    {
+                        double total = distObserver.Distances[triple[0]] + distObserver2.Distances[triple[1]] + (double)Int32.Parse(triple[2]);
+                        if (total < initialPathLength)
+                        {
+                            viablePathAdditions.Push(triple[0] + ':' + triple[1]);
+                            if (currentMinEdgeWeight < 0 || total < currentMinEdgeWeight)
+                            {
+                                currentMinEdgeWeight = total;
+                                currentMinEdgeAddition = triple[0] + ':' + triple[1];
+                            }
+                        }
+                    }
+                }
+                if (viablePathAdditions.Count > 0)
+                {
+                    Console.WriteLine("Additions that would minimize path length.");
+                    while (viablePathAdditions.Count > 0)
+                    {
+                        Console.WriteLine(viablePathAdditions.Pop());
+                    }
+                    Console.WriteLine("The cost-minimizing addition is:");
+                    Console.WriteLine(currentMinEdgeAddition);
+                }
+                else
+                {
+                    Console.WriteLine("There are no additions that would minimize path length.");
+                }
+            }
+            Console.ReadLine();
+        }
+
+        static void Test1()
+        {
+
             AdjacencyGraph<string, Edge<string>> graph = new AdjacencyGraph<string, Edge<string>>(true);
             // Transpose graph
             AdjacencyGraph<string, Edge<string>> tGraph = new AdjacencyGraph<string, Edge<string>>(true);
@@ -41,28 +166,28 @@ namespace CSE591PA1
             //graph, tgraph, sourceNode, endNode, weight
             AddEdgeToBoth(graph, tGraph, edgeCost, "A", "B", 4);
             AddEdgeToBoth(graph, tGraph, edgeCost, "A", "D", 1);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "B", "A",74);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "B", "A", 74);
             AddEdgeToBoth(graph, tGraph, edgeCost, "B", "C", 2);
             AddEdgeToBoth(graph, tGraph, edgeCost, "B", "E", 12);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "C", "B",12);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "C", "F",74);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "C", "J",12);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "D", "E",32);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "C", "B", 12);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "C", "F", 74);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "C", "J", 12);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "D", "E", 32);
             AddEdgeToBoth(graph, tGraph, edgeCost, "D", "G", 22);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "E", "D",66);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "E", "F",76);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "E", "H",33);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "F", "I",11);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "F", "J",21);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "G", "D",12);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "G", "H",10);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "H", "G",2);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "H", "I",72);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "I", "F",31);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "I", "J",18);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "I", "H",7);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "J", "F",8);
-            AddEdgeToBoth(graph, tGraph, edgeCost, "Y", "Z",1);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "E", "D", 66);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "E", "F", 76);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "E", "H", 33);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "F", "I", 11);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "F", "J", 21);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "G", "D", 12);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "G", "H", 10);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "H", "G", 2);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "H", "I", 72);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "I", "F", 31);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "I", "J", 18);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "I", "H", 7);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "J", "F", 8);
+            AddEdgeToBoth(graph, tGraph, edgeCost, "Y", "Z", 1);
 
             /*
              */
@@ -70,7 +195,7 @@ namespace CSE591PA1
 
 
 
-            System.Func< Edge<String>, double > EdgeCostFunct = (QuickGraph.Edge<string> input) => { return (edgeCost.ContainsKey(input)) ? edgeCost[input] : 0.0; };
+            System.Func<Edge<String>, double> EdgeCostFunct = (QuickGraph.Edge<string> input) => { return (edgeCost.ContainsKey(input)) ? edgeCost[input] : 0.0; };
 
 
             //FORWARD SEARCH
@@ -107,7 +232,7 @@ namespace CSE591PA1
 
 
             string startName = null;
-            while(startName == null)
+            while (startName == null)
             {
                 Console.WriteLine("What is the start point?");
                 string name = Console.ReadLine();
@@ -167,7 +292,7 @@ namespace CSE591PA1
                 while (distObserver.Distances.ContainsKey(currentNodeString) && distObserver.Distances[currentNodeString] > 0)
                 {
                     nodeStringStack.Push("" + currentNodeString);
-                    if(DEBUG_ON)Console.WriteLine("currentNodeString Node Being Pushed is " + currentNodeString);
+                    if (DEBUG_ON) Console.WriteLine("currentNodeString Node Being Pushed is " + currentNodeString);
                     currentNodeString = "" + predecessorObserver.VertexPredecessors[currentNodeString].Source;
                 }
                 if (distObserver.Distances.ContainsKey(currentNodeString) && distObserver.Distances[currentNodeString] == 0)
@@ -213,7 +338,7 @@ namespace CSE591PA1
 
             }
             Console.ReadLine();
-            }
+        }
 
         //graph, tgraph, node
 
