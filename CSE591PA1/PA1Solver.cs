@@ -174,6 +174,7 @@ namespace CSE591PA1
             }
             Console.WriteLine("Press enter to return to the main menu.");
             Console.ReadLine();
+            if (sR != null) sR.Close();
         }
 
         //graph, tgraph, node
