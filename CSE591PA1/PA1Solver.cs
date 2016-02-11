@@ -8,7 +8,7 @@ using QuickGraph.Algorithms;
 using QuickGraph.Algorithms.Search;
 using QuickGraph.Algorithms.ShortestPath;
 using QuickGraph.Algorithms.Observers;
-//using QuickGraph.Data;
+using System.IO;
 
 
 namespace CSE591PA1
@@ -21,18 +21,26 @@ namespace CSE591PA1
 
         static void  Main()
         {
-            while(true)
+            bool stillRunning = true;
+            while(stillRunning)
             {
                 Console.WriteLine(">>>>>>>>MAIN MENU<<<<<<<<");
                 Console.WriteLine();
                 Console.WriteLine("What form of input would you like to use for the program?");
                 Console.WriteLine("\t>Input : \'f\' for file input");
                 Console.WriteLine("\t>Input : \'c\' for console input");
+                Console.WriteLine("\t>Input : \'q\' to quit");
                 string possible = Console.ReadLine();
-                if(possible == "f" || possible =="F") Test2(InputMode.FILE);
+                if (possible == "f" || possible == "F") Test2(InputMode.FILE);
                 else if (possible == "c" || possible == "C") Test2(InputMode.CLI);
+                else if (possible == "q" || possible == "Q") stillRunning = false;
                 else Console.WriteLine("I'm sorry I didn't understand that. Please try again.");
             }
+            Console.WriteLine();
+            Console.WriteLine("Thank you. The program is now complete.");
+            Console.WriteLine("Close the terminal or press return to close.");
+            Console.ReadLine();
+
         }
 
         static void Test2(InputMode pIM)
@@ -56,13 +64,24 @@ namespace CSE591PA1
             {
                 Console.WriteLine("Please enter the path of the file to pull input from.");
                 filePath = Console.ReadLine();
-                sR =  new System.IO.StreamReader(filePath);
+                while (!File.Exists(filePath))
+                {
+                    Console.WriteLine("That file appears to not exist. Try again.");
+                    filePath = Console.ReadLine();
+                }
+                while (IsFileinUse(filePath))
+                {
+                    Console.WriteLine("File is currently in use. Please close it and press enter.");
+                    Console.ReadLine();
+                }
+                sR = new System.IO.StreamReader(filePath);
             }
 
             AdjacencyGraph<string, Edge<string>> graph = new AdjacencyGraph<string, Edge<string>>(true);
             // Transpose graph
             AdjacencyGraph<string, Edge<string>> tGraph = new AdjacencyGraph<string, Edge<string>>(true);
             Dictionary<Edge<string>, double> edgeCost = new Dictionary<Edge<string>, double>();
+            Dictionary<Edge<string>, double> tEdgeCost = new Dictionary<Edge<string>, double>();
 
             int n = Convert.ToInt32((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine());
             for (int i = 0; i < n; i++)
@@ -74,19 +93,21 @@ namespace CSE591PA1
             string[] theParts;
             for (int i = 0; i < m; i++)
             {
-                theParts = ((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine()).Split(splitChars);
-                AddEdgeToBoth(graph, tGraph, edgeCost, theParts[0], theParts[1], Convert.ToInt32(theParts[2]));
+                theParts = ((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine()).Replace(" ", "").Replace("\t", "").Split(splitChars);
+                AddEdgeToBoth(graph, tGraph, edgeCost, tEdgeCost, theParts[0], theParts[1], Convert.ToInt32(theParts[2]));
             }
             int k = Convert.ToInt32(((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine()));
             Stack<string[]> optionalEdgeStack = new Stack<string[]>();
             for (int i = 0; i < k; i++)
             {
-                optionalEdgeStack.Push(((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine()).Split(splitChars));
+                optionalEdgeStack.Push(((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine()).Replace(" ", "").Replace("\t", "").Split(splitChars));
             }
             string source = ((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine());
             string target = ((pIM == InputMode.CLI) ? Console.ReadLine() : sR.ReadLine());
 
-            System.Func<Edge<String>, double> EdgeCostFunct = (QuickGraph.Edge<string> input) => { return (edgeCost.ContainsKey(input)) ? edgeCost[input] : 0.0; };
+            System.Func<Edge<String>, double> EdgeCostFunct = (QuickGraph.Edge<string> input) => { return (edgeCost.ContainsKey(input)) ? edgeCost[input] : 1000.0; };
+            System.Func<Edge<String>, double> EdgeCostFunct2 = (QuickGraph.Edge<string> input) => { return (tEdgeCost.ContainsKey(input)) ? tEdgeCost[input] : 1000.0; };
+
 
 
             //FORWARD SEARCH
@@ -109,11 +130,11 @@ namespace CSE591PA1
 
 
             // We want to use Dijkstra on this graph
-            DijkstraShortestPathAlgorithm<string, Edge<string>> dijkstra2 = new DijkstraShortestPathAlgorithm<string, Edge<string>>(tGraph, EdgeCostFunct);
+            DijkstraShortestPathAlgorithm<string, Edge<string>> dijkstra2 = new DijkstraShortestPathAlgorithm<string, Edge<string>>(tGraph, EdgeCostFunct2);
 
             // attach a distance observer to give us the shortest path distances
 
-            VertexDistanceRecorderObserver<string, Edge<string>> distObserver2 = new VertexDistanceRecorderObserver<string, Edge<string>>(EdgeCostFunct);
+            VertexDistanceRecorderObserver<string, Edge<string>> distObserver2 = new VertexDistanceRecorderObserver<string, Edge<string>>(EdgeCostFunct2);
             distObserver2.Attach(dijkstra2);
 
             // Attach a Vertex Predecessor Recorder Observer to give us the paths
@@ -172,6 +193,7 @@ namespace CSE591PA1
                     Console.WriteLine("There are no additions that would minimize path length.");
                 }
             }
+            Console.WriteLine("");
             Console.WriteLine("Press enter to return to the main menu.");
             Console.ReadLine();
             if (sR != null) sR.Close();
@@ -187,7 +209,7 @@ namespace CSE591PA1
 
         //graph, tgraph, sourceNode, endNode, weight
 
-        public static void AddEdgeToBoth(AdjacencyGraph<string, Edge<string>> graph, AdjacencyGraph<string, Edge<string>> tGraph, Dictionary<Edge<string>, double> edgeCost,string sourceString, string endString, int weight)
+        public static void AddEdgeToBoth(AdjacencyGraph<string, Edge<string>> graph, AdjacencyGraph<string, Edge<string>> tGraph, Dictionary<Edge<string>, double> edgeCost, Dictionary<Edge<string>, double> tEdgeCost, string sourceString, string endString, int weight)
         {
             Edge<string> curEdge = new Edge<string>(sourceString, endString);
             graph.AddEdge(curEdge);
@@ -196,8 +218,34 @@ namespace CSE591PA1
 
             Edge<string> transposeEdge = new Edge<string>(endString, sourceString);
             tGraph.AddEdge(transposeEdge);
-            edgeCost.Add(transposeEdge, weight);
+            tEdgeCost.Add(transposeEdge, weight);
         }
+
+
+
+
+        static bool IsFileinUse(string filePath)
+        {
+            FileInfo file = new FileInfo(filePath);
+            FileStream stream = null;
+
+            try
+            {
+                stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException)
+            {
+                return true;
+            }
+            finally
+            {
+                if (stream != null)
+                    stream.Close();
+            }
+            return false;
+        }
+
+
 
     }
 }
